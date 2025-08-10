@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors());
 
-// سرو فایل‌های استاتیک از پوشه public
+// سرو کردن فایل‌های استاتیک از پوشه public
 app.use(express.static(path.join(__dirname, 'public')));
 
 let proxies = [];
@@ -21,12 +21,13 @@ async function fetchProxiesFromSource(url) {
     const res = await fetch(url);
     const text = await res.text();
     return text.split('\n').map(p => p.trim()).filter(Boolean);
-  } catch {
+  } catch (err) {
+    console.error(`Error fetching proxies from ${url}:`, err);
     return [];
   }
 }
 
-// بروزرسانی لیست پراکسی‌ها
+// آپدیت لیست پراکسی‌ها از منابع مختلف
 async function updateProxies() {
   const sources = [
     'https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks5&timeout=1000&country=all&ssl=all&anonymity=all',
@@ -41,18 +42,19 @@ async function updateProxies() {
   }
 
   proxies = Array.from(new Set(allProxies));
+  console.log(`✅ Added ${proxies.length} unique proxies.`);
 }
 
-// آپدیت اولیه و هر 30 دقیقه
+// آپدیت اولیه و هر 30 دقیقه یکبار
 updateProxies();
 setInterval(updateProxies, 30 * 60 * 1000);
 
-// API برای گرفتن پراکسی‌ها
+// API برای دریافت پراکسی‌ها
 app.get('/api/proxies', (req, res) => {
   res.json(proxies);
 });
 
-// برای هر مسیر دیگه، صفحه اصلی رو بفرست
+// ارسال فایل index.html برای تمام مسیرهای دیگر (برای SPA)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
