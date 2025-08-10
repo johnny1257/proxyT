@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Telegram Proxies</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+    h1 { color: #333; }
+    #proxy-list { margin-top: 20px; }
+    .proxy { background: #fff; padding: 8px 12px; margin-bottom: 5px; border-radius: 4px; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
+  </style>
+</head>
+<body>
+  <h1>Telegram Proxies</h1>
+  <button id="load-btn">Load Proxies</button>
+  <div id="proxy-list"></div>
+
+  <script>
+    const loadBtn = document.getElementById('load-btn');
+    const proxyList = document.getElementById('proxy-list');
+
+    loadBtn.onclick = async () => {
+      proxyList.innerHTML = 'Loading...';
+      try {
+        const res = await fetch('/api/proxies');
+        if (!res.ok) throw new Error('Network response was not ok');
+        const proxies = await res.json();
+        if (proxies.length === 0) {
+          proxyList.innerHTML = '<p>No proxies found.</p>';
+          return;
+        }
+        proxyList.innerHTML = '';
+        proxies.forEach(p => {
+          const div = document.createElement('div');
+          div.className = 'proxy';
+          div.textContent = p;
+          proxyList.appendChild(div);
+        });
+      } catch (err) {
+        proxyList.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
+      }
+    };
+  </script>
+</body>
+</html>

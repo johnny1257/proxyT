@@ -1,7 +1,5 @@
-// server.js
 import express from 'express';
 import cors from 'cors';
-import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fetch from 'node-fetch';
@@ -10,21 +8,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(cors());  // فعال کردن CORS
+app.use(cors());
 
-const PORT = 3000;
-const proxiesFile = path.join(__dirname, 'proxies.json');
+// Serve static files from 'public' folder
+app.use(express.static(path.join(__dirname, 'public')));
 
 let proxies = [];
 
-// Load proxies from file if exists
-if (fs.existsSync(proxiesFile)) {
-  proxies = JSON.parse(fs.readFileSync(proxiesFile));
-}
-
-console.log(`Server running on port ${PORT}`);
-console.log(`Loaded ${proxies.length} proxies from file.`);
-
+// تابع کمکی برای گرفتن پراکسی‌ها از منابع مختلف
 async function fetchProxiesFromSource(url) {
   try {
     const res = await fetch(url);
@@ -35,6 +26,7 @@ async function fetchProxiesFromSource(url) {
   }
 }
 
+// آپدیت لیست پراکسی‌ها از منابع
 async function updateProxies() {
   const sources = [
     'https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks5&timeout=1000&country=all&ssl=all&anonymity=all',
@@ -42,43 +34,31 @@ async function updateProxies() {
     'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt'
   ];
 
-  let newProxies = [];
+  let allProxies = [];
   for (const src of sources) {
-    const list = await fetchProxiesFromSource(src);
-    newProxies.push(...list);
+    const fetched = await fetchProxiesFromSource(src);
+    allProxies = allProxies.concat(fetched);
   }
 
-  newProxies = [...new Set(newProxies)];
-  const added = newProxies.length - proxies.length;
-
-  if (added > 0) {
-    proxies = newProxies;
-    fs.writeFileSync(proxiesFile, JSON.stringify(proxies, null, 2));
-    console.log(`✅ Added ${added} new proxies, total now ${proxies.length}`);
-  }
-
-  return { added, total: proxies.length };
+  // حذف پراکسی‌های تکراری
+  proxies = Array.from(new Set(allProxies));
 }
 
-// API endpoint to update proxies manually
-app.get('/api/fetch-and-add', async (req, res) => {
-  const result = await updateProxies();
-  res.json(result);
-});
+// هر 30 دقیقه آپدیت می‌کنیم پراکسی‌ها رو
+updateProxies();
+setInterval(updateProxies, 30 * 60 * 1000);
 
-// API endpoint to get current proxies list
+// API برای دریافت پراکسی‌ها
 app.get('/api/proxies', (req, res) => {
   res.json(proxies);
 });
 
-// Auto-update every 10 minutes
-setInterval(updateProxies, 10 * 60 * 1000);
+// برای تمام مسیرهای دیگه، صفحه اصلی رو بفرست
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
-// Run immediately after start
-(async () => {
-  await updateProxies();
-})();
-
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server is listening on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
